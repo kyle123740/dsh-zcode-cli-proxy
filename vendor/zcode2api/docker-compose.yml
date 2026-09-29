@@ -1,0 +1,19 @@
+services:
+  zcode2api:
+    build: .
+    image: zcode2api:latest
+    container_name: zcode2api
+    ports:
+      - "3000:3000"
+    volumes:
+      # 账号 / 设置持久化到宿主机（容器内为 /data）
+      - ./data:/data
+    environment:
+      # 后台管理密码（首次启动写入 data/accounts.db，之后以数据库为准）
+      ZCODE_ADMIN_KEY: "zcode"
+      # 后台自动刷新各账号额度的间隔（秒），0 关闭
+      ZCODE_QUOTA_REFRESH_INTERVAL: "60"
+      # 单次无痕验证求解超时（秒）/ 失败重试次数
+      ZCODE_CAPTCHA_TIMEOUT: "40"
+      ZCODE_CAPTCHA_RETRIES: "4"
+    restart: unless-stopped

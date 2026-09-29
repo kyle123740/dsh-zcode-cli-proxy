@@ -1,0 +1,13 @@
+node_modules/
+js-code/node_modules/
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+# 运行时数据（账号 SQLite 等）
+data/
+data_test/
+
+.env
+js-code/

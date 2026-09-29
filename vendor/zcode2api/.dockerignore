@@ -1,0 +1,29 @@
+# ── 版本控制 / 文档 ──
+.git
+.gitignore
+.github
+docs
+*.md
+LICENSE
+
+# ── 运行时数据与密钥（务必排除，避免泄露/写入镜像）──
+data
+data_test
+.env
+*.env
+zcode_oauth_result.json
+
+# ── 依赖与缓存（镜像内重新安装）──
+captcha_node/node_modules
+**/__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+.pytest_cache
+.mypy_cache
+
+# ── 旧实现 / 杂项 ──
+js-code
+.vscode
+.idea

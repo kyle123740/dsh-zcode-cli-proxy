@@ -1,0 +1,38 @@
+{
+  "name": "dsh-zcode2api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "将 zcode2api（ZCode Coding Plan 额度 → Anthropic Messages API 网关）装进 DeepSeek Harness：内置上游源码、Python 运行时装配、网关进程托管、账号池/额度工具，并把网关注册成可直接选用的模型提供方。",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "setup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1",
+    "test": "node test/adapter.test.mjs && node test/tools.verify.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.1",
+    "@deepseek-ai/schemastery": ">=3.18.1",
+    "@deepseek-ai/dsh-credentials": ">=0.1.5-rc.1",
+    "@deepseek-ai/dsh-llm": ">=0.1.5-rc.1",
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.1"
+  },
+  "files": [
+    "lib",
+    "scripts",
+    "cordis.patch.yml",
+    "README.md",
+    "vendor"
+  ]
+}

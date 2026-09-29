@@ -1,0 +1,11 @@
+# 运行时装配产物
+node_modules/
+__pycache__/
+*.py[cod]
+
+# 本机运行数据（账号库/日志，含敏感凭据，绝不入库）
+test/.runtime/
+
+# 系统杂项
+.DS_Store
+Thumbs.db
