@@ -9,4 +9,4 @@
 # 再禁用/启用本 bundle，新代码即生效。
 - insert:
     - id: zcode2api
-      name: 'file:///E:/ai/dsh/plugins/dsh-zcode2api/lib/index.js?v=9'
+      name: 'file:///E:/ai/dsh/plugins/dsh-zcode2api/lib/index.js?v=10'

@@ -1,8 +1,8 @@
 {
   "name": "dsh-zcode2api",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "将 zcode2api（ZCode Coding Plan 额度 → Anthropic Messages API 网关）装进 DeepSeek Harness：内置上游源码、Python 运行时装配、网关进程托管、账号池/额度工具，并把网关注册成可直接选用的模型提供方。",
+  "description": "dsh-zcode cli反代：把 DSH 的模型请求经 ZCode 客户端 app-server 转接到 ZCode Start Plan 额度（GLM 系列，真流式、图片输入、会话复用），注册成 DSH 可直接选用的模型提供方。原 zcode2api 网关已移除，需要请用原版 liu5269/zcode2api。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -10,10 +10,6 @@
       "default": "./lib/index.js"
     },
     "./package.json": "./package.json"
-  },
-  "scripts": {
-    "setup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1",
-    "test": "node test/adapter.test.mjs && node test/tools.verify.mjs"
   },
   "dsh": {
     "bundle": {
@@ -25,14 +21,12 @@
     "@deepseek-ai/cordis": ">=4.0.1",
     "@deepseek-ai/schemastery": ">=3.18.1",
     "@deepseek-ai/dsh-credentials": ">=0.1.5-rc.1",
-    "@deepseek-ai/dsh-llm": ">=0.1.5-rc.1",
-    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.1"
+    "@deepseek-ai/dsh-llm": ">=0.1.5-rc.1"
   },
   "files": [
     "lib",
     "scripts",
     "cordis.patch.yml",
-    "README.md",
-    "vendor"
+    "README.md"
   ]
 }
