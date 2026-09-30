@@ -42,16 +42,27 @@ DSH Agent ──► provider "zcode2api" ──► Zcode2ApiAdapter ──► ht
 
 ## 三种用法
 
-### 用法 A：模型提供方 `zcode-cli`（在模型选择器里选它）
+### 用法 A：模型提供方 `zcode-cli`（在模型选择器里选它）✅ 主力通道
 
 设置 → 模型 → 提供方 **ZCode CLI（客户端 agent）** → 模型 `GLM-5.3-Flash (ZCode CLI)`。
-选中后 DSH 的模型请求会交给 ZCode 客户端自带的 agent 执行，**用的是你 ZCode 账号的额度**。
+选中后 DSH 的模型请求会交给常驻的 ZCode app-server 执行，**烧的是你 ZCode 账号的 Start Plan 额度**
+（执行渠道实测为 `account:zai-start-plan/GLM-5.3-Flash @ https://zcode.z.ai/api/v1/zcode-plan/anthropic`）。
 
-- 多轮会话按 DSH 的 sessionId 自动 `--resume`，后续轮次只发新增消息（省掉每轮约 18k 的重复上下文）
+通道由 `useAppServer`（出厂 true）控制，走 **GUI 同款 app-server 链路**（2026-09-30 逆向打通并实测）：
+
+1. spawn `zcode app-server` 时按 GUI 同款设置 `ZCODE_APP_VERSION` / `ZCODE_BUILTIN_PROVIDER_CONFIG_FILE` /
+   `ZCODE_PERSONAL_PROVIDER_CONFIG_FILE` / `ZCODE_BASE_URL`（否则 CLI 落在 0.0.0-dev 目录，注入对不上）；
+2. `provider/updateAccountConfig` 注入 `account:zai-start-plan`（entitled）。**关键坑**：
+   `basedOnZCodeBuiltinRevision` 必须逐字符等于 configSource 的
+   `zcode-builtin:<revision>:<sha256(activeFilePath)>`，否则 registry 合并循环**静默跳过**（不报错）；
+3. `session/setModel`（0.16.9 起要求对象式 `{providerId, modelId, options:{reasoningLevel}}`，level 必填，GUI 用 max）；
+4. agent 发模型请求前回调 `interaction/requestProviderRuntimeHeaders` 要鉴权 —— 回共享凭证里的
+   **`zcodejwttoken`**（`oauth:zai:access_token` 已过期，回它上游 401）。agent 自己算 coding-plan 请求签名，能过 WAF；
+5. `session/event` 的事件类型在 **params.type 顶层**（不是 payload.type），`turn.failed` 也要处理，
+   `replayState` 里不能有 `undefined` 字段（lossless JSON 校验会炸）。
+
+- 多轮会话按 DSH 的 sessionId 复用 app-server 会话
 - 会话标题这类辅助调用在本地生成，不消耗额度
-- **取舍**：CLI 自身就是 agent，它不会按 DSH 的工具协议发起 tool_call（实测提示词约定会被 GLM 判为注入而拒答），
-  所以「模型调用 DSH 自己的工具」这条链不成立 —— 它回答/干活，但工具是它自带的那套。
-  需要 DSH 工具循环的场景请用现在的模型 + 用法 B 外包。
 
 ### 用法 B：`zcode_cli` 工具（把任务转交给 ZCode agent）
 
@@ -61,29 +72,8 @@ zcode_cli(prompt="重构 src/foo.ts 并跑测试", cwd="E:\\proj", mode="yolo")
 
 - 返回最终答复、`sessionId`（可用 `resume` 续接）和 token 用量
 - CLI 会在指定工作目录里用自带工具读写文件、执行命令 —— 适合"把整块活外包出去"
-- 每次调用输入约 18k tokens（CLI agent 的系统提示+工具定义），Start Plan 每日 3M 量级够用
-
-> 为什么不用 HTTP 直连：计划端点 `zcode.z.ai/api/v1/zcode-plan/anthropic` 带阿里云无痕验证 +
-> 风控，外部请求（jsdom 求解、真实浏览器、客户端 renderer、过 WAF 的同源浏览器）**一律被服务端判
-> `3007 captcha verify failed` 或 `3012 unusual activity`**；而客户端 CLI 这条路径实测可用。
-
-### 实验性：`app-server` 常驻会话（默认关闭，`useAppServer=true` 开启）
-
-`zcode app-server` 是 ZCode Protocol 的 stdio JSON-RPC 服务，协议已完整逆向
-（方法清单、schema、事件流见 `scripts/probe-*.cjs`，探测脚本可直接跑通全流程并拿到流式事件）：
-
-- 信封**没有 `jsonrpc` 字段**：请求 `{id,method,params}`、通知 `{method,params}`、响应 `{id,result|error}`
-- `session/create {workspace:{workspacePath,workspaceKey}}` → `result.session.sessionId`
-- 服务端会反向请求 `session/requestRuntimePreferences`，必须回复
-  `{nativeSearchEnhancementsEnabled, memoryEnabled, askUserQuestionAutoResolutionEnabled, modelContextBudgetStrategy:'preflight-v1'}`
-- `session/subscribe {sessionId, deliveryKind:'desktop-continuous'}` → `session/event` 事件流
-  （`model.streaming{kind:text_delta|reasoning_delta}` 与 `turn.completed{response,usage}`）
-- `session/send {sessionId, content}` → `{accepted:true}`
-- 会话里可选的模型由客户端**当前选中的供应商**决定（`session/setModel` 换不到别的供应商，
-  会报 "Provider Registry 中不存在 Model"）
-
-已知问题：探测脚本直接跑全流程正常，但经本插件的适配器管道 `session/send` 被接受后事件流为空
-（`includeSnapshot`、就绪等待、cwd 均已排除），原因未明。因此默认走一次性 CLI；开启后失败会自动回退。
+- 注意：CLI 冷启动（`-p`）的会话默认供应商来自 registry-fallback，若默认渠道（如"基源"）余额不足会 402。
+  用 Start Plan 请走用法 A。
 
 ### 用法 C：HTTP 网关 + provider `zcode2api`（仅适用于 API Key 账号）
 
@@ -114,12 +104,19 @@ JWT 类型的 Coding Plan/Start Plan 账号在当前上游版本下会被验证�
 | `models` | `GLM-5.2`、`GLM-5-Turbo` | 暴露给 DSH 的模型清单（要与网关对外公布的模型一致） |
 | `thinking` | `disabled` | 是否请求 thinking 块 |
 | `runtimeHome` / `projectDir` / `dataDir` | 自动 | 运行时目录 / 源码目录 / 数据目录 |
+| `useAppServer` | `true` | app-server 常驻通道（Start Plan 主路径，用法 A）。关闭则退回一次性 CLI 冷启动 |
+| `injectStartPlanAccount` | `true` | app-server 通道：把 Start Plan 账户注入 agent（GUI 同款） |
+| `zcodeDataBaseDir` | 空 | ZCode 共享凭证目录（读 `zcodejwttoken`）；留空 = 用户主目录 |
+| `cliCwd` | 空 | CLI/app-server 委派时的工作目录；留空 = DSH 进程当前目录（app-server 会话默认用户主目录） |
 
 ## 开发：改了代码怎么生效
 
-DSH 的 loader 只在**行 name 变化**时重新 import 插件模块，而 Node ESM 以完整 URL
-（含查询串）为缓存键；profile 的 HMR 没开模块目录监视，所以直接改文件**不会**热加载。
-插件用 `cordis.patch.yml` 里的 `?v=N` 解决：
+**桌面版**（`C:\Users\zy\.dsh\profiles\desktop`，bundle `dsh-zcode2api` 以 `link:` 挂载）：
+没有热重载，改完 `lib\*.js` 后**重启 DeepSeek Harness** 即生效。
+
+**网页版 / file:// 装配**：DSH 的 loader 只在**行 name 变化**时重新 import 插件模块，
+而 Node ESM 以完整 URL（含查询串）为缓存键；profile 的 HMR 没开模块目录监视，
+直接改文件不会热加载。用 `cordis.patch.yml` 里的 `?v=N` 解决：
 
 ```yaml
 # cordis.patch.yml
