@@ -1,9 +1,15 @@
-# dsh-zcode2api
+# dsh-zcode cli反代（dsh-zcode-cli-proxy）
 
 把 [zcode2api](https://github.com/liu5269/zcode2api)（ZCode Coding Plan 额度 → Anthropic Messages API 网关）
 装进 **DeepSeek Harness** 的本地插件：内置上游源码、自动装配 Python 运行时、托管网关进程，
 并把网关注册成 DSH 的模型提供方 —— **ZCode 的模型（GLM-5.2 / GLM-5-Turbo）直接出现在模型选择器里**，
 外加四个运维工具让你在对话里管理账号池、额度和网关。
+
+**主通道（推荐，默认开启）**：`zcode-cli` 提供方走 GUI 同款的 app-server 常驻会话 ——
+插件注入 Start Plan 账户（entitled）+ 每次请求前提供 OAuth 鉴权，直接烧 ZCode Coding Plan / Start Plan
+的额度（真流式、图片输入、会话复用，无需任何 API Key）。HTTP 网关通道保留给有免验证 API Key 账号的场景。
+
+仓库：<https://github.com/kyle123740/dsh-zcode-cli-proxy>
 
 ```
 DSH Agent ──► provider "zcode2api" ──► Zcode2ApiAdapter ──► http://127.0.0.1:3000/v1/messages
