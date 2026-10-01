@@ -50,6 +50,28 @@ DSH 设置 → 模型（Models）→ 提供方 **ZCode Start Plan（客户端反
 > HTTP 直连计划端点会被阿里云无痕验证拦（3007/3012）——只有 agent 二进制自己发的签名请求能过，
 > 所以「反代」的形态是托管 agent 进程而不是自建 HTTP 网关。
 
+## 回合锁与自愈
+
+app-server **一个会话同时只允许一个在途回合**。上一轮被中止 / 超时 / 静默丢弃时它不会自己释放，
+下一轮 `session/send` 就被拒成 `A prompt is already running for this session`（DSH 里显示成
+「本轮运行失败 · PROVIDER」，因为文案是逐字透传上游的 JSON-RPC 错误）。通道层做四件事兜底：
+
+1. **补发 `session/stop`**：本轮只要没正常结束（超时 / 被中止 / 发送失败 / `turn.failed`），
+   生成器 `finally` 一定补一刀，不把锁留给下一轮；
+2. **撞锁自愈**：`send` 被回「already running」→ 补 stop → 等 1.5s → 原会话重试一次；
+   被回「session … not found」（会话被回收 / 进程重启）→ 丢弃缓存条目、新建会话，
+   `firstTurn` 语义自动重放整段对话，历史不丢；
+3. **回合串行化**：同一 DSH 会话的两轮排队跑（最多等 60s，超时放行交给 2 处理），
+   并发请求不再直接撞错；
+4. **进程退出即作废**：app-server 子进程退出（含 spawn 失败）时清空会话映射，
+   避免下一轮拿悬空 sessionId 去发；spawn 的 `error` 事件也接住了，不会打挂宿主。
+
+回归验证（不需要真 ZCode 客户端与额度，跑的是假 app-server）：
+
+```
+node test\turn-lock.mjs        # 17 项断言：撞锁自愈 / 串行化 / 中止补刀 / 重启作废 / 会话失效重放
+```
+
 ## 配置（设置 → 插件）
 
 | 字段 | 默认 | 说明 |
@@ -92,6 +114,7 @@ lib/messages.js     共用消息工具：图片落盘、对话拍平
 lib/credentials.js  解密 ~/.zcode/v2/credentials.json，取 Start Plan token
 scripts/            Start Plan 通道的逆向探测脚本（probe-*.cjs）
 test/               app-server 通道与凭证解密的验证脚本
+                    turn-lock.mjs + fake-app-server.cjs：回合锁自愈的回归测试
 ```
 
 ## 许可
