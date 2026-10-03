@@ -185,7 +185,7 @@ async function waitForSend(readLog, n) {
   check('D 重启后重新 create 会话并跑通', two.error === undefined && creates.length === 2,
     `creates=${creates.length} ${JSON.stringify(two)}`)
   check('D 新会话按首轮语义重放（拍平整段对话，而不是裸发最后一条）',
-    typeof sendTwo.params.content === 'string' && sendTwo.params.content.startsWith('# 用户'),
+    typeof sendTwo.params.content === 'string' && sendTwo.params.content.includes('# 用户') && sendTwo.params.content.includes('第二轮'),
     JSON.stringify(sendTwo.params.content?.slice(0, 20)))
   adapter.dispose()
   fs.rmSync(logPath, { force: true })
@@ -204,7 +204,7 @@ async function waitForSend(readLog, n) {
     creates.length === 2 && sends.length === 2 && sends[0].params.sessionId !== sends[1].params.sessionId,
     `creates=${creates.length} sends=${sends.length}`)
   check('E 新会话重放整段对话（拍平，而不是裸发最后一条）',
-    typeof sends[1]?.params?.content === 'string' && sends[1].params.content.startsWith('# 用户'))
+    typeof sends[1]?.params?.content === 'string' && sends[1].params.content.includes('# 用户') && sends[1].params.content.includes('第一条'))
   check('E 会话失效不该发 session/stop', stopsOf(entries).length === 0, `stops=${stopsOf(entries).length}`)
   adapter.dispose()
   fs.rmSync(logPath, { force: true })
