@@ -1,12 +1,12 @@
-# dsh-zcode2api bundle patch：把插件行插进 profile 组合树。
+# dsh-zcode-cli-proxy bundle patch：把插件行插进 profile 组合树。
 # 作为 profile 的一层补丁应用在 dsh-base / dsh-web-app 之后。
 # 行 id（zcode2api）同时是 Config 页面里的设置分组键。
 #
-# name 直接写入口文件的绝对 file:// URL：loader 只有在行 name 变化时才会
-# 重新 import 模块，而 Node ESM 以完整 URL 为缓存键 —— 与包名
-# （'dsh-zcode2api' 经 symlink 解析）不同的 URL 会触发一次全新的导入。
-# 后续改 lib/*.js 后，改一下这里的名字（或在文件名后加 ?v=2、?v=3…）
-# 再禁用/启用本 bundle，新代码即生效。
+# name 必须是 package.json 的包名：loader 按包名从 profile 的 node_modules 解析
+# （npm 安装 / link: 装配都走这条路）。
+# 本地开发热重载（不装进 node_modules 的目录式装配）：把 name 换成 lib/index.js
+# 的绝对 file:// URL 并加 ?v=N —— loader 只在行 name 变化时重新 import 模块，
+# 而 Node ESM 以完整 URL 为缓存键；改完 lib/*.js 后递增 N，再禁用/启用本 bundle。
 - insert:
     - id: zcode2api
-      name: 'file:///E:/ai/dsh/plugins/dsh-zcode2api/lib/index.js?v=10'
+      name: 'dsh-zcode-cli-proxy'

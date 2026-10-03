@@ -3,13 +3,15 @@
  *
  *   node test/turn-lock.mjs
  *
- * 覆盖四个场景：
+ * 覆盖六个场景：
  *   A 撞锁恢复：session/send 被拒 "A prompt is already running for this session"
  *              → 补发 session/stop → 重试成功（不再把错误抛给 DSH）
  *   B 回合串行化：同一 DSH 会话并发两轮 → 第二轮排队，不会撞出第二条 send
  *   C 中止补刀：回合没正常结束（被调用方中止）→ finally 一定发出 session/stop
  *   D 进程重启：app-server 退出 → 缓存会话全部作废，下一轮重新 create
  *   E 会话失效：send 被回 "session … not found" → 重建会话并重放整段对话
+ *   F 退出快败：回合在途时进程退出 → 在途流立刻失败收尾，不干等回合超时
+ *   G 会话分叉：DSH 侧编辑历史 → 前缀指纹对不上 → 重建会话重放新分支
  */
 
 import fs from 'node:fs'
@@ -53,6 +55,8 @@ function makeAdapter(mode) {
     cliCwd: '',
     injectStartPlanAccount: false,
     zcodeDataBaseDir: '',
+    // 假 CLI 靠 FAKE_MODE / FAKE_LOG 环境变量驱动：顺带验证 childEnvAllow 白名单放行
+    childEnvAllow: ['FAKE_MODE', 'FAKE_LOG'],
     maxTokens: 100,
     defaultContextWindow: 1000,
     retryPolicy: {},
@@ -65,8 +69,8 @@ function makeAdapter(mode) {
   return { adapter, readLog, logPath }
 }
 
-/** 跑一轮，返回 { text, error }（不抛）。 */
-async function runTurn(adapter, sessionId, text, signal) {
+/** 跑一轮，返回 { text, error }（不抛）。messages 可覆盖默认的单条用户消息。 */
+async function runTurn(adapter, sessionId, text, signal, messages) {
   const parts = []
   try {
     for await (const item of adapter.stream({
@@ -74,7 +78,7 @@ async function runTurn(adapter, sessionId, text, signal) {
       model: 'glm-test',
       system: '',
       signal,
-      messages: [{ role: 'user', content: [{ type: 'text', text }] }],
+      messages: messages ?? [{ role: 'user', content: [{ type: 'text', text }] }],
     })) {
       if (item.type === 'text-delta') parts.push(item.text ?? '')
       if (item.type === 'finish' && item.reason?.kind === 'error') return { error: item.reason.failure?.message, text: parts.join('') }
@@ -206,6 +210,50 @@ async function waitForSend(readLog, n) {
   check('E 新会话重放整段对话（拍平，而不是裸发最后一条）',
     typeof sends[1]?.params?.content === 'string' && sends[1].params.content.includes('# 用户') && sends[1].params.content.includes('第一条'))
   check('E 会话失效不该发 session/stop', stopsOf(entries).length === 0, `stops=${stopsOf(entries).length}`)
+  adapter.dispose()
+  fs.rmSync(logPath, { force: true })
+}
+
+// ── F 进程退出 → 在途流立刻失败（不干等回合超时）───────────────────────────────
+{
+  const { adapter, readLog, logPath } = makeAdapter('hold')
+  const running = runTurn(adapter, 'sess-f', '进程退出前的一轮')
+  await waitForSend(readLog, 1)
+  await sleep(300)
+  const startedAt = Date.now()
+  adapter.client.child.kill() // 回合在途时干掉 app-server
+  const dead = await running
+  const elapsed = Date.now() - startedAt
+  check('F 回合在途时进程退出 → 流立刻失败（不等回合超时）',
+    /进程已退出/.test(dead.error ?? '') && elapsed < 10000,
+    `error=${dead.error ?? 'none'} elapsed=${elapsed}ms`)
+  const stops = await waitFor(() => stopsOf(readLog()).length, 1000)
+  check('F 退出收尾不再向已死进程发 stop', stops === 0, `stops=${stops ?? 0}`)
+  adapter.dispose()
+  fs.rmSync(logPath, { force: true })
+}
+
+// ── G 会话分叉（DSH 侧编辑历史）→ 重建并重放新分支 ────────────────────────────
+{
+  const { adapter, readLog, logPath } = makeAdapter('normal')
+  await runTurn(adapter, 'sess-g', '原始第一条')
+  // 模拟 DSH 侧编辑历史：第一条消息的文本被改掉，随后追加第二轮。
+  // 续接前的前缀指纹（第 1 条消息）对不上上一轮 send 时的指纹 → 必须重建会话。
+  const edited = [
+    { role: 'user', content: [{ type: 'text', text: '改过的第一条' }] },
+    { role: 'assistant', content: [{ type: 'text', text: 'hello-1' }] },
+    { role: 'user', content: [{ type: 'text', text: '第二条' }] },
+  ]
+  const second = await runTurn(adapter, 'sess-g', '', undefined, edited)
+  const entries = readLog()
+  const creates = entries.filter((entry) => entry.method === 'session/create')
+  const sends = sendsOf(entries)
+  check('G 历史被编辑 → 检测到分叉并重建会话',
+    second.error === undefined && creates.length === 2,
+    `creates=${creates.length} error=${second.error ?? 'none'}`)
+  check('G 重建后按首轮语义重放新分支（含改过的历史）',
+    typeof sends[1]?.params?.content === 'string'
+      && sends[1].params.content.includes('改过的第一条') && sends[1].params.content.includes('第二条'))
   adapter.dispose()
   fs.rmSync(logPath, { force: true })
 }
