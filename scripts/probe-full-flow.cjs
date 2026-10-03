@@ -90,12 +90,12 @@ async function call(label, method, params, timeout = 10000) {
   console.log('工作目录:', WORKSPACE)
 
   let created = await call('session/create', 'session/create', {
-    workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-zcode2api' },
+    workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-dsh-zcode-cli-proxy' },
   })
   if (!created) {
     // 让 Zod 再报一次完整字段
     created = await call('session/create(+prefs)', 'session/create', {
-      workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-zcode2api' },
+      workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-dsh-zcode-cli-proxy' },
       nativeSearchEnhancementsEnabled: false,
     })
   }

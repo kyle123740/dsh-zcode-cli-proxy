@@ -51,7 +51,7 @@ const race = (p, ms) => Promise.race([p, sleep(ms).then(() => ({ timeout: true }
 
   console.log('\n=== 2. session/create（探测时序：等就绪后再 +0s） ===')
   const created = await client.request('session/create', {
-    workspace: { workspacePath: 'C:\\Users\\zy\\ZCodeProject', workspaceKey: 'dsh-zcode2api' },
+    workspace: { workspacePath: 'C:\\Users\\zy\\ZCodeProject', workspaceKey: 'dsh-dsh-zcode-cli-proxy' },
   }, 120000)
   const sessionId = created?.session?.sessionId
   console.log('sessionId =', sessionId)

@@ -118,7 +118,7 @@ file:// URL 加 `?v=N`：
 ```yaml
 # cordis.patch.yml（仅本地开发，勿提交）
 - insert:
-    - id: zcode2api
+    - id: dsh-zcode-cli-proxy
       name: 'file:///E:/ai/dsh/plugins/dsh-zcode-cli-proxy/lib/index.js?v=N'
 ```
 

@@ -71,7 +71,7 @@ async function call(method, params, timeout = 12000) {
 
 ;(async () => {
   await sleep(2500)
-  const created = await call('session/create', { workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-zcode2api' } })
+  const created = await call('session/create', { workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-dsh-zcode-cli-proxy' } })
   const sessionId = created?.result?.session?.sessionId
   console.log('sessionId =', sessionId)
   if (!sessionId) { child.kill(); process.exit(0) }

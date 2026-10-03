@@ -69,7 +69,7 @@ async function call(label, method, params, timeout = 12000) {
 
 ;(async () => {
   await sleep(2500)
-  const created = await call('create', 'session/create', { workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-zcode2api' } })
+  const created = await call('create', 'session/create', { workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-dsh-zcode-cli-proxy' } })
   if (!created) { child.kill(); process.exit(0) }
 
   console.log('=== create 返回的顶层键 ===')

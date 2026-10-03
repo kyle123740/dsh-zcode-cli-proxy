@@ -79,7 +79,7 @@ async function call(label, method, params, timeout = 10000) {
 
 ;(async () => {
   await sleep(2500)
-  const created = await call('create', 'session/create', { workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-zcode2api' } })
+  const created = await call('create', 'session/create', { workspace: { workspacePath: WORKSPACE, workspaceKey: 'dsh-dsh-zcode-cli-proxy' } })
   if (!created) { child.kill(); process.exit(0) }
   const sessionId = created.sessionId
   await sleep(1500) // 等 state.updated 带出可选模型

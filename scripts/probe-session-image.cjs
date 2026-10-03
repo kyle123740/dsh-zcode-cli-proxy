@@ -9,7 +9,7 @@ const os = require('node:os')
 const path = require('node:path')
 
 const CLI = process.env.ZCODE_CLI_PATH || 'C:\\Users\\zy\\AppData\\Local\\Programs\\ZCode\\resources\\glm\\zcode.cjs'
-const IMAGE = process.argv[2] || path.join(os.tmpdir(), 'zcode2api-img-test.png')
+const IMAGE = process.argv[2] || path.join(os.tmpdir(), 'dsh-zcode-cli-proxy-img-test.png')
 
 const env = { ...process.env }
 delete env.ELECTRON_RUN_AS_NODE
@@ -101,7 +101,7 @@ let sessionId
 ;(async () => {
   await sleep(8000) // 就绪等待（插件同款）
   const created = await race(request('session/create', {
-    workspace: { workspacePath: os.homedir(), workspaceKey: 'dsh-zcode2api-probe' },
+    workspace: { workspacePath: os.homedir(), workspaceKey: 'dsh-dsh-zcode-cli-proxy-probe' },
   }), 15000)
   if (created.error || !created.result?.session?.sessionId) {
     console.log('✗ session/create 失败:', brief(created.error ?? created.result, 300))

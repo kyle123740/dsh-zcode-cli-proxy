@@ -72,7 +72,7 @@ async function runTurn(label, params) {
 ;(async () => {
   await client.ensureStarted()
   const created = await client.request('session/create', {
-    workspace: { workspacePath: 'C:\\Users\\zy', workspaceKey: 'dsh-zcode2api-imgtest2' },
+    workspace: { workspacePath: 'C:\\Users\\zy', workspaceKey: 'dsh-dsh-zcode-cli-proxy-imgtest2' },
   }, options().appServerTimeoutMs)
   const sessionId = created?.session?.sessionId
   console.log('sessionId =', sessionId)
